@@ -6,6 +6,8 @@ namespace Kanemenicou\UrlHelper;
 
 use Symfony\Component\String\UnicodeString;
 
+use function count;
+use function is_numeric;
 use function Symfony\Component\String\s;
 
 final class Url extends UnicodeString
@@ -20,27 +22,26 @@ final class Url extends UnicodeString
             ->append(urlencode($value))
         ;
 
-        return new Url((string)$this->replace((string)$originalQuery, (string)$newQuery));
+        return $this->replace((string)$originalQuery, (string)$newQuery);
     }
 
     public function removeQueryParameter(string $name): self
     {
-        return new Url(
-            (string)$this
-                ->replaceMatches('/[&]' . $name . '=[^&]*/', '')
-                ->replaceMatches('/' . $name . '=[^&]*[&]{0,}/', '')
-                ->trimSuffix('?'),
-        );
+        return $this
+            ->replaceMatches('/[&]' . $name . '=[^&]*/', '')
+            ->replaceMatches('/' . $name . '=[^&]*[&]{0,}/', '')
+            ->trimSuffix('?')
+        ;
     }
 
     public function trimTrailingSlash(): self
     {
-        return new Url((string)$this->trimSuffix('/'));
+        return $this->trimSuffix('/');
     }
 
     public function appendTrailingSlash(): self
     {
-        return new Url((string)$this->append('/'));
+        return $this->append('/');
     }
 
     public function setFragment(?string $string): self
@@ -48,7 +49,7 @@ final class Url extends UnicodeString
         $url = $this->clearFragment();
 
         if ($string !== null) {
-            return new Url((string)$url->append('#')->append($string));
+            return $url->append('#')->append($string);
         }
 
         return $url;
@@ -56,15 +57,76 @@ final class Url extends UnicodeString
 
     public function clearFragment(): self
     {
-        return new Url((string)$this->replaceMatches('/#.*$/', ''));
+        return $this->replaceMatches('/#.*$/', '');
     }
 
-    public function getQueryParameter(string $name): string|int|float|null
+    public function getQueryParameter(string $name): array|string|int|float|null
     {
-        return (string)$this
-            ->slice($this->indexOf($name . '='))
-            ->slice(length: $this->slice($this->indexOf($name . '='))->indexOf('&') ?? 0)
-            ->trimPrefix($name . '=')
-        ;
+        $indexOfQueryParameter = $this->indexOf($name . '=');
+        if ($indexOfQueryParameter === null) {
+            return null;
+        }
+
+        $value = $this->slice($indexOfQueryParameter)->replace($name . '=', '')->split('&')[0];
+        if (!is_numeric((string)$value)) {
+            return (string)$value;
+        }
+
+        if (count($value->match('/^[0-9]{1,}$/')) > 0) {
+            return (int)$value->toString();
+        }
+
+        return (float)$value->toString();
+    }
+
+    public function getScheme(): string
+    {
+        return (string)s($this->match('/^([A-z0-9]*)\:\/\//')[0])->replace('://', '');
+    }
+
+    public function getExplicitlyDefinedPort(): ?int
+    {
+        $portAndPrefix = $this->match('/:[0-9]{1,5}/')[0] ?? null;
+        if ($portAndPrefix === null) {
+            return null;
+        }
+
+        return (int)(s($portAndPrefix)->trimPrefix(':')->toString());
+    }
+
+    public function getPort(): ?int
+    {
+        $port = $this->getExplicitlyDefinedPort();
+        if ($port !== null) {
+            return $port;
+        }
+
+        return match (s($this->getScheme())->lower()->toString()) {
+            'http' => 80,
+            'https' => 443,
+            'ftp' => 21,
+            'ftps' => 990,
+            'sftp', 'ssh' => 22,
+            'telnet' => 23,
+            'smtp' => 25,
+            'smtps' => 465,
+            'imap' => 143,
+            'imaps' => 993,
+            'pop3' => 110,
+            'pop3s' => 995,
+            'ldap' => 389,
+            'ldaps' => 636,
+            'dns' => 53,
+            'dhcp' => 67,
+            'ntp' => 123,
+            'mysql' => 3306,
+            'pgsql' => 5432,
+            'mssql' => 1433,
+            'rdp' => 3389,
+            'redis' => 6379,
+            'memcached' => 11211,
+            'mongodb' => 27017,
+            default => null,
+        };
     }
 }

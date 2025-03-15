@@ -83,12 +83,38 @@ class UrlTest extends TestCase
         self::assertSame('http://example.com#title', (string)$url);
     }
 
+
+    #[Test]
+    public function itWillSetWithAFragment(): void
+    {
+        $url = new Url('http://example.com');
+
+        $url = $url->withFragment('some=test');
+
+        self::assertSame('http://example.com#some=test', (string)$url);
+
+        $url = $url->withFragment('0');
+
+        self::assertSame('http://example.com#0', (string)$url);
+    }
+
+
     #[Test]
     public function itWillAllowAFragmentToBeSetToNull(): void
     {
         $url = new Url('http://example.com#title');
 
         $url = $url->setFragment(null);
+
+        self::assertSame('http://example.com', (string)$url);
+    }
+
+    #[Test]
+    public function itWillAllowAUrlWithEmptyFragment(): void
+    {
+        $url = new Url('http://example.com#title');
+
+        $url = $url->withFragment('');
 
         self::assertSame('http://example.com', (string)$url);
     }
@@ -207,7 +233,7 @@ class UrlTest extends TestCase
     #[DataProvider('portsWithDefaults')]
     public function itWillReturnPorts(string $url, ?int $port): void
     {
-        self::assertSame($port, new Url($url)->getPort());
+        self::assertSame($port, new Url($url)->getPort(true));
     }
 
     public static function portsWithDefaults(): array
@@ -217,128 +243,273 @@ class UrlTest extends TestCase
 
         return [
             ...$ports,
+            ...self::schemePortDefaults(),
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('schemePortDefaults')]
+    public function itWillNotReturnPortIfReturningDefaultsIsTurnedOff(string $url, ?int $port): void
+    {
+        self::assertNull(new Url($url)->getPort());
+    }
+
+    #[Test]
+    #[DataProvider('schemePortDefaults')]
+    public function itWillReturnPortDefaultForScheme(string $url, ?int $port): void
+    {
+        self::assertSame($port, new Url($url)->getDefaultPortForScheme());
+    }
+
+    public static function schemePortDefaults(): array
+    {
+        return [
             'https://example.com/?bar=&int=3' => [
                 'url' => 'https://example.com/?bar=&int=3',
+                'port' => 443,
+            ],
+            'https://example.com:443/?bar=&int=3' => [
+                'url' => 'https://example.com/?bar=&int:443=3',
                 'port' => 443,
             ],
             'http://example.com/?bar=&int=3' => [
                 'url' => 'http://example.com/?bar=&int=3',
                 'port' => 80,
             ],
+            'http://example.com:80/?bar=&int=3' => [
+                'url' => 'http://example.com/?bar=&int:80=3',
+                'port' => 80,
+            ],
             'ftp://example.com/?bar=&int=3' => [
                 'url' => 'http://example.com/?bar=&int=3',
+                'port' => 80,
+            ],
+            'ftp://example.com:80/?bar=&int=3' => [
+                'url' => 'http://example.com/?bar=&int:80=3',
                 'port' => 80,
             ],
             'somethingrandom://example.com/?bar=&int=3' => [
                 'url' => 'somethingrandom://example.com/?bar=&int=3',
                 'port' => null,
             ],
+            'somethingrandom://example.com:null/?bar=&int=3' => [
+                'url' => 'somethingrandom://example.com/?bar=&int:null=3',
+                'port' => null,
+            ],
             'http://example.com/somepath' => [
                 'url' => 'http://example.com/somepath',
+                'port' => 80,
+            ],
+            'http://example.com:80/somepath' => [
+                'url' => 'http://example.com:80/somepath',
                 'port' => 80,
             ],
             'https://example.com/somepath' => [
                 'url' => 'https://example.com/somepath',
                 'port' => 443,
             ],
+            'https://example.com:443/somepath' => [
+                'url' => 'https://example.com:443/somepath',
+                'port' => 443,
+            ],
             'ftp://example.com/somepath' => [
                 'url' => 'ftp://example.com/somepath',
+                'port' => 21,
+            ],
+            'ftp://example.com:21/somepath' => [
+                'url' => 'ftp://example.com:21/somepath',
                 'port' => 21,
             ],
             'ftps://example.com/somepath' => [
                 'url' => 'ftps://example.com/somepath',
                 'port' => 990,
             ],
+            'ftps://example.com:990/somepath' => [
+                'url' => 'ftps://example.com:990/somepath',
+                'port' => 990,
+            ],
             'sftp://example.com/somepath' => [
                 'url' => 'sftp://example.com/somepath',
+                'port' => 22,
+            ],
+            'sftp://example.com:22/somepath' => [
+                'url' => 'sftp://example.com:22/somepath',
                 'port' => 22,
             ],
             'ssh://example.com/somepath' => [
                 'url' => 'ssh://example.com/somepath',
                 'port' => 22,
             ],
+            'ssh://example.com:22/somepath' => [
+                'url' => 'ssh://example.com:22/somepath',
+                'port' => 22,
+            ],
             'telnet://example.com/somepath' => [
                 'url' => 'telnet://example.com/somepath',
+                'port' => 23,
+            ],
+            'telnet://example.com:23/somepath' => [
+                'url' => 'telnet://example.com:23/somepath',
                 'port' => 23,
             ],
             'smtp://example.com/somepath' => [
                 'url' => 'smtp://example.com/somepath',
                 'port' => 25,
             ],
+            'smtp://example.com:25/somepath' => [
+                'url' => 'smtp://example.com:25/somepath',
+                'port' => 25,
+            ],
             'smtps://example.com/somepath' => [
                 'url' => 'smtps://example.com/somepath',
+                'port' => 465,
+            ],
+            'smtps://example.com:465/somepath' => [
+                'url' => 'smtps://example.com:465/somepath',
                 'port' => 465,
             ],
             'imap://example.com/somepath' => [
                 'url' => 'imap://example.com/somepath',
                 'port' => 143,
             ],
+            'imap://example.com:143/somepath' => [
+                'url' => 'imap://example.com:143/somepath',
+                'port' => 143,
+            ],
             'imaps://example.com/somepath' => [
                 'url' => 'imaps://example.com/somepath',
+                'port' => 993,
+            ],
+            'imaps://example.com:993/somepath' => [
+                'url' => 'imaps://example.com:993/somepath',
                 'port' => 993,
             ],
             'pop3://example.com/somepath' => [
                 'url' => 'pop3://example.com/somepath',
                 'port' => 110,
             ],
+            'pop3://example.com:110/somepath' => [
+                'url' => 'pop3://example.com:110/somepath',
+                'port' => 110,
+            ],
             'pop3s://example.com/somepath' => [
                 'url' => 'pop3s://example.com/somepath',
+                'port' => 995,
+            ],
+            'pop3s://example.com:995/somepath' => [
+                'url' => 'pop3s://example.com:995/somepath',
                 'port' => 995,
             ],
             'ldap://example.com/somepath' => [
                 'url' => 'ldap://example.com/somepath',
                 'port' => 389,
             ],
+            'ldap://example.com:389/somepath' => [
+                'url' => 'ldap://example.com:389/somepath',
+                'port' => 389,
+            ],
             'ldaps://example.com/somepath' => [
                 'url' => 'ldaps://example.com/somepath',
+                'port' => 636,
+            ],
+            'ldaps://example.com:636/somepath' => [
+                'url' => 'ldaps://example.com:636/somepath',
                 'port' => 636,
             ],
             'dns://example.com/somepath' => [
                 'url' => 'dns://example.com/somepath',
                 'port' => 53,
             ],
+            'dns://example.com:53/somepath' => [
+                'url' => 'dns://example.com:53/somepath',
+                'port' => 53,
+            ],
             'dhcp://example.com/somepath' => [
                 'url' => 'dhcp://example.com/somepath',
+                'port' => 67,
+            ],
+            'dhcp://example.com:67/somepath' => [
+                'url' => 'dhcp://example.com:67/somepath',
                 'port' => 67,
             ],
             'ntp://example.com/somepath' => [
                 'url' => 'ntp://example.com/somepath',
                 'port' => 123,
             ],
+            'ntp://example.com:123/somepath' => [
+                'url' => 'ntp://example.com:123/somepath',
+                'port' => 123,
+            ],
             'NTP://example.com/somepath' => [
                 'url' => 'NTP://example.com/somepath',
+                'port' => 123,
+            ],
+            'NTP://example.com:123/somepath' => [
+                'url' => 'NTP://example.com:123/somepath',
                 'port' => 123,
             ],
             'mysql://example.com/somepath' => [
                 'url' => 'mysql://example.com/somepath',
                 'port' => 3306,
             ],
+            'mysql://example.com:3306/somepath' => [
+                'url' => 'mysql://example.com:3306/somepath',
+                'port' => 3306,
+            ],
             'pgsql://example.com/somepath' => [
                 'url' => 'pgsql://example.com/somepath',
+                'port' => 5432,
+            ],
+            'pgsql://example.com:5432/somepath' => [
+                'url' => 'pgsql://example.com:5432/somepath',
                 'port' => 5432,
             ],
             'mssql://example.com/somepath' => [
                 'url' => 'mssql://example.com/somepath',
                 'port' => 1433,
             ],
+            'mssql://example.com:1433/somepath' => [
+                'url' => 'mssql://example.com:1433/somepath',
+                'port' => 1433,
+            ],
             'rdp://example.com/somepath' => [
                 'url' => 'rdp://example.com/somepath',
+                'port' => 3389,
+            ],
+            'rdp://example.com:3389/somepath' => [
+                'url' => 'rdp://example.com:3389/somepath',
                 'port' => 3389,
             ],
             'redis://example.com/somepath' => [
                 'url' => 'redis://example.com/somepath',
                 'port' => 6379,
             ],
+            'redis://example.com:6379/somepath' => [
+                'url' => 'redis://example.com:6379/somepath',
+                'port' => 6379,
+            ],
             'memcached://example.com/somepath' => [
                 'url' => 'memcached://example.com/somepath',
+                'port' => 11211,
+            ],
+            'memcached://example.com:11211/somepath' => [
+                'url' => 'memcached://example.com:11211/somepath',
                 'port' => 11211,
             ],
             'MEMCACHED://example.com/somepath' => [
                 'url' => 'MEMCACHED://example.com/somepath',
                 'port' => 11211,
             ],
+            'MEMCACHED://example.com:11211/somepath' => [
+                'url' => 'MEMCACHED://example.com:11211/somepath',
+                'port' => 11211,
+            ],
             'mongodb://example.com/somepath' => [
                 'url' => 'mongodb://example.com/somepath',
+                'port' => 27017,
+            ],
+            'mongodb://example.com:27017/somepath' => [
+                'url' => 'mongodb://example.com:27017/somepath',
                 'port' => 27017,
             ],
         ];

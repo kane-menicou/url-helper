@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Kanemenicou\UrlHelper;
 
+use Psr\Http\Message\UriInterface;
 use Symfony\Component\String\UnicodeString;
 
 use function count;
 use function is_numeric;
 use function Symfony\Component\String\s;
 
-final class Url extends UnicodeString
+final class Url extends UnicodeString implements UriInterface
 {
     public function addQueryParameter(string $name, mixed $value): self
     {
@@ -94,13 +95,89 @@ final class Url extends UnicodeString
         return (int)(s($portAndPrefix)->trimPrefix(':')->toString());
     }
 
-    public function getPort(): ?int
+    public function getPort(bool $returnDefault = false): ?int
     {
-        $port = $this->getExplicitlyDefinedPort();
-        if ($port !== null) {
-            return $port;
+        $defaultPortForScheme = $this->getDefaultPortForScheme();
+        $explicitlyDefinedPort = $this->getExplicitlyDefinedPort();
+
+        if (! $returnDefault && $explicitlyDefinedPort === $defaultPortForScheme) {
+            return null;
         }
 
+        if ($explicitlyDefinedPort !== null || ! $returnDefault) {
+            return $explicitlyDefinedPort;
+        }
+
+        return $defaultPortForScheme;
+    }
+
+    public function getAuthority(): string
+    {
+        // TODO: Implement getAuthority() method.
+    }
+
+    public function getUserInfo(): string
+    {
+        // TODO: Implement getUserInfo() method.
+    }
+
+    public function getHost(): string
+    {
+        // TODO: Implement getHost() method.
+    }
+
+    public function getPath(): string
+    {
+        // TODO: Implement getPath() method.
+    }
+
+    public function getQuery(): string
+    {
+        // TODO: Implement getQuery() method.
+    }
+
+    public function getFragment(): string
+    {
+        // TODO: Implement getFragment() method.
+    }
+
+    public function withScheme(string $scheme): self
+    {
+        // TODO: Implement withScheme() method.
+    }
+
+    public function withUserInfo(string $user, ?string $password = null): self
+    {
+        // TODO: Implement withUserInfo() method.
+    }
+
+    public function withHost(string $host): self
+    {
+        // TODO: Implement withHost() method.
+    }
+
+    public function withPort(?int $port): self
+    {
+        // TODO: Implement withPort() method.
+    }
+
+    public function withPath(string $path): self
+    {
+        // TODO: Implement withPath() method.
+    }
+
+    public function withQuery(string $query): self
+    {
+        // TODO: Implement withQuery() method.
+    }
+
+    public function withFragment(string $fragment): self
+    {
+        return $this->setFragment($fragment !== '' ? $fragment : null);
+    }
+
+    public function getDefaultPortForScheme(): ?int
+    {
         return match (s($this->getScheme())->lower()->toString()) {
             'http' => 80,
             'https' => 443,

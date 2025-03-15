@@ -19,6 +19,12 @@ class UrlTest extends TestCase
         $url = $url->addQueryParameter('foo', 'bar');
 
         self::assertSame('http://example.com/?bar=baz&foo=bar', (string)$url);
+    }
+
+    #[Test]
+    public function itWillRemoveQueryParameters(): void
+    {
+        $url = new Url('http://example.com/?bar=baz&foo=bar');
 
         $url = $url->removeQueryParameter('bar');
 
@@ -27,10 +33,22 @@ class UrlTest extends TestCase
         $url = $url->removeQueryParameter('foo');
 
         self::assertSame('http://example.com/', (string)$url);
+    }
+
+    #[Test]
+    public function itWillTrimTrailingSlashes(): void
+    {
+        $url = new Url('http://example.com/');
 
         $url = $url->trimTrailingSlash();
 
         self::assertSame('http://example.com', (string)$url);
+    }
+
+    #[Test]
+    public function itWillAppendATrailingSlash(): void
+    {
+        $url = new Url('http://example.com');
 
         $url = $url->appendTrailingSlash();
 
@@ -39,26 +57,42 @@ class UrlTest extends TestCase
         $url = $url->appendTrailingSlash();
 
         self::assertSame('http://example.com//', (string)$url);
+    }
 
-        $url = $url->setFragment('some=test');
-
-        self::assertSame('http://example.com//#some=test', (string)$url);
-
-        $url = $url->setFragment('title');
-
-        self::assertSame('http://example.com//#title', (string)$url);
+    /**
+     * @test
+     */
+    public function itWillClearAFragment(): void
+    {
+        $url = new Url('http://example.com#some=test');
 
         $url = $url->clearFragment();
 
-        self::assertSame('http://example.com//', (string)$url);
+        self::assertSame('http://example.com', (string)$url);
+    }
 
-        $url = $url->setFragment('title2');
+    #[Test]
+    public function itWillSetAFragment(): void
+    {
+        $url = new Url('http://example.com');
 
-        self::assertSame('http://example.com//#title2', (string)$url);
+        $url = $url->setFragment('some=test');
+
+        self::assertSame('http://example.com#some=test', (string)$url);
+
+        $url = $url->setFragment('title');
+
+        self::assertSame('http://example.com#title', (string)$url);
+    }
+
+    #[Test]
+    public function itWillAllowAFragmentToBeSetToNull(): void
+    {
+        $url = new Url('http://example.com#title');
 
         $url = $url->setFragment(null);
 
-        self::assertSame('http://example.com//', (string)$url);
+        self::assertSame('http://example.com', (string)$url);
     }
 
     #[Test]
@@ -74,7 +108,7 @@ class UrlTest extends TestCase
             'http://example.com/?bar=baz&foo=bar' => [
                 'url' => 'http://example.com/?bar=baz&foo=bar',
                 'key' => 'bar',
-                'value' => 'bar',
+                'value' => 'baz',
             ]
         ];
     }

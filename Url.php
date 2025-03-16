@@ -7,31 +7,38 @@ namespace Kanemenicou\UrlHelper;
 use Psr\Http\Message\UriInterface;
 use Symfony\Component\String\UnicodeString;
 
+use function array_keys;
 use function count;
 use function is_numeric;
+use function parse_url;
 use function Symfony\Component\String\s;
+use function urldecode;
+use const PHP_URL_QUERY;
 
 final class Url extends UnicodeString implements UriInterface
 {
     public function addQueryParameter(string $name, mixed $value): self
     {
-        $originalQuery = s(parse_url($this->string, PHP_URL_QUERY));
-        $newQuery = $originalQuery
-            ->append($originalQuery->isEmpty() ? '?' : '&')
+        $newQuery = s(parse_url($this->string, PHP_URL_QUERY))
+            ->prepend('?')
+            ->append(s(parse_url($this->string, PHP_URL_QUERY))->length() > 1 ? '&' : '')
             ->append(urlencode($name))
             ->append('=')
-            ->append(urlencode($value))
+            ->append(urlencode((string)$value))
         ;
 
-        return $this->replace((string)$originalQuery, (string)$newQuery);
+        $fragment = $this->getFragment();
+
+        return $this->clearFragment()->clearQuery()->append($newQuery->string)->append($fragment);
     }
 
     public function removeQueryParameter(string $name): self
     {
         return $this
-            ->replaceMatches('/[&]' . $name . '=[^&]*/', '')
-            ->replaceMatches('/' . $name . '=[^&]*[&]{0,}/', '')
+            ->replaceMatches('/[&]' . $name . '=*[^&]/', '')
+            ->replaceMatches('/' . $name . '=[^&#]*[&]{0,}/', '')
             ->trimSuffix('?')
+            ->replace('?#', '#')
         ;
     }
 
@@ -68,9 +75,9 @@ final class Url extends UnicodeString implements UriInterface
             return null;
         }
 
-        $value = $this->slice($indexOfQueryParameter)->replace($name . '=', '')->split('&')[0];
+        $value = $this->slice($indexOfQueryParameter)->replace($name . '=', '')->split('&')[0]->split('#')[0];
         if (!is_numeric((string)$value)) {
-            return (string)$value;
+            return urldecode((string)$value);
         }
 
         if (count($value->match('/^[0-9]{1,}$/')) > 0) {
@@ -138,7 +145,7 @@ final class Url extends UnicodeString implements UriInterface
 
     public function getFragment(): string
     {
-        // TODO: Implement getFragment() method.
+        return '';
     }
 
     public function withScheme(string $scheme): self
@@ -168,7 +175,15 @@ final class Url extends UnicodeString implements UriInterface
 
     public function withQuery(string $query): self
     {
-        // TODO: Implement withQuery() method.
+        $url = $this->clearQuery();
+
+        foreach (s($query)->split('&') as $query) {
+            [$key, $value] = $query->split('=');
+
+            $url = $url->addQueryParameter((string)$key, (string)$value);
+        }
+
+        return $url;
     }
 
     public function withFragment(string $fragment): self
@@ -205,5 +220,35 @@ final class Url extends UnicodeString implements UriInterface
             'mongodb' => 27017,
             default => null,
         };
+    }
+
+    public function clearQuery(): self
+    {
+        $url = clone $this;
+        foreach (array_keys($this->allQueryParameters()) as $key) {
+            $url = $url->removeQueryParameter($key);
+        }
+
+        return $url->replace('?', '');
+    }
+
+    /**
+     * @return array<string, int|string|float|null>
+     */
+    public function allQueryParameters(): array
+    {
+        $queryString = s($this->match('/(\?)([^#]{0,})/')[2] ?? '');
+        if ($queryString->isEmpty()) {
+            return [];
+        }
+
+        $queryParameters = [];
+        foreach ($queryString->split('&') as $queryParameter) {
+            $key = $queryParameter->split('=')[0] ?? null;
+
+            $queryParameters[(string)$key] = $this->getQueryParameter((string)$key);
+        }
+
+        return $queryParameters;
     }
 }

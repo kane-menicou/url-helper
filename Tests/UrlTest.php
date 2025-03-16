@@ -24,15 +24,15 @@ class UrlTest extends TestCase
     #[Test]
     public function itWillRemoveQueryParameters(): void
     {
-        $url = new Url('http://example.com/?bar=baz&foo=bar');
+        $url = new Url('http://example.com/?bar=baz&foo=bar#test=23');
 
         $url = $url->removeQueryParameter('bar');
 
-        self::assertSame('http://example.com/?foo=bar', (string)$url);
+        self::assertSame('http://example.com/?foo=bar#test=23', (string)$url);
 
         $url = $url->removeQueryParameter('foo');
 
-        self::assertSame('http://example.com/', (string)$url);
+        self::assertSame('http://example.com/#test=23', (string)$url);
     }
 
     #[Test]
@@ -511,6 +511,106 @@ class UrlTest extends TestCase
             'mongodb://example.com:27017/somepath' => [
                 'url' => 'mongodb://example.com:27017/somepath',
                 'port' => 27017,
+            ],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('allQueryParameters')]
+    public function itWillSupportGettingAllQueryParameters(string $url, array $result): void
+    {
+        self::assertSame($result, new Url($url)->allQueryParameters());
+    }
+
+    public static function allQueryParameters(): array
+    {
+        return [
+            'https://example.com?query=123' => [
+                'url' => 'https://example.com?query=123',
+                'result' => [
+                    'query' => 123,
+                ],
+            ],
+            'https://example.com' => [
+                'url' => 'https://example.com',
+                'result' => [],
+            ],
+            'https://example.com?query=some%20text&other=1243#test=123&other=124' => [
+                'url' => 'https://example.com?query=some%20text&other=1243#test=123&other=124',
+                'result' => [
+                    'query' => 'some text',
+                    'other' => 1243,
+                ],
+            ],
+            'https://example.com?' => [
+                'url' => 'https://example.com?',
+                'result' => [],
+            ],
+            'https://example.com?empty=&null' => [
+                'url' => 'https://example.com?empty=&null',
+                'result' => [
+                    'empty' => '',
+                    'null' => null,
+                ],
+            ],
+            // TODO: SUPPORT ARRAY QUERY PARAMETERS
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('withQueryParametersCleared')]
+    public function itWillSupportClearingQueryParameters(string $url, string $result): void
+    {
+        self::assertSame($result, (string)(new Url($url)->clearQuery()));
+    }
+
+    public static function withQueryParametersCleared(): array
+    {
+        return [
+            'https://example.com?query=123' => [
+                'url' => 'https://example.com?query=123',
+                'result' => 'https://example.com',
+            ],
+            'https://example.com?query=123&other=1243#test=123' => [
+                'url' => 'https://example.com?query=123&other=1243#test=123',
+                'result' => 'https://example.com#test=123',
+            ],
+            'https://example.com?' => [
+                'url' => 'https://example.com?',
+                'result' => 'https://example.com',
+            ],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('withQueryStringToAdd')]
+    public function itWillAllowWithQuery(string $url, string $query, string $result): void
+    {
+        self::assertSame($result, (string)new Url($url)->withQuery($query));
+    }
+
+    public static function withQueryStringToAdd(): array
+    {
+        return [
+            'https://example.com?query=123' => [
+                'url' => 'https://example.com?query=123',
+                'query' => 'query=123',
+                'result' => 'https://example.com?query=123',
+            ],
+            'https://example.com?query=123&other=test%20space#test=123' => [
+                'url' => 'https://example.com?query=123&another=some%20testother=1243#test=123',
+                'query' => 'query=123&other=test space',
+                'result' => 'https://example.com?query=123&other=test+space#test=123',
+            ],
+            'https://example.com?query=123&other=other%20text#test=123' => [
+                'url' => 'https://example.com?query=123&&another=some%20testother=1243#test=123',
+                'query' => 'query=123&other=other%20text',
+                'result' => 'https://example.com?query=123&other=other%20text#test=123',
+            ],
+            'https://example.com' => [
+                'url' => 'https://example.com?',
+                'query' => '',
+                'result' => 'https://example.com',
             ],
         ];
     }
